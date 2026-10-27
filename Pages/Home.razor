@@ -1,0 +1,145 @@
+﻿
+@page "/"
+@using Services
+
+<PageTitle>Calculadora IPv4</PageTitle>
+
+<div class="calculator">
+    <header class="header">
+        <div class="header-icon">IP</div>
+        <div>
+            <h1>Calculadora IPv4</h1>
+            <p>Calcule endereços e intervalos de sub-redes.</p>
+        </div>
+    </header>
+
+    <section class="panel">
+        <h2>Configuração da rede</h2>
+
+        <form @onsubmit="CalculateAddresses"@onsubmit:preventDefault="true">
+            <div class="inputs">
+                <input @bind="ipAddress"
+                       placeholder="Endereço IPv4" />
+
+                <input type="number"
+                       @bind="prefixLength" />
+            </div>
+
+            <button type="submit" class="btn-calculate">
+                Calcular sub-rede
+            </button>
+        </form>
+    </section>
+
+    @if (hasResult)
+    {
+        <section class="results">
+            <div class="results-header">
+                <h2>Resultado da análise</h2>
+                <span class="status">Calculado</span>
+            </div>
+
+            <div class="result-grid">
+                <div class="result-card">
+                    <span>Endereço de rede</span>
+                    <strong>@networkAddress</strong>
+                </div>
+
+                <div class="result-card">
+                    <span>Broadcast</span>
+                    <strong>@broadcastAddress</strong>
+                </div>
+
+                <div class="result-card">
+                    <span>Primeiro host</span>
+                    <strong>@firstAddress</strong>
+                </div>
+
+                <div class="result-card">
+                    <span>Último host</span>
+                    <strong>@lastAddress</strong>
+                </div>
+            </div>
+        </section>
+    }
+
+    @if (error)
+    {
+        <div class="error-box" role="alert">
+            <strong>Erro ao calcular IPv4</strong>
+            <p>@errorMessage</p>
+            <button @onclick="() => error = false">
+                Fechar
+            </button>
+        </div>
+    }
+</div>
+
+@code {
+    private bool error = false;
+    private bool hasResult = false;
+    private string errorMessage = string.Empty;
+
+    private string ipAddress = string.Empty;
+    private uint prefixLength = 22;
+
+    private string networkAddress = string.Empty;
+    private string broadcastAddress = string.Empty;
+    private string firstAddress = string.Empty;
+    private string lastAddress = string.Empty;
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            CalculateAddresses();
+        }
+    }
+
+    private void CalculateAddresses()
+    {
+        error = false;
+        hasResult = false;
+
+        try
+        {
+            if (prefixLength > 32)
+                throw new ArgumentException(
+                    "O prefixo CIDR deve estar entre 0 e 32.");
+
+            networkAddress =
+                IPv4Calculator.GetNetworkAddress(
+                    ipAddress, prefixLength);
+
+            broadcastAddress =
+                IPv4Calculator.GetBroadcastAddress(
+                    ipAddress, prefixLength);
+
+            if (prefixLength <= 30)
+            {
+                firstAddress =
+                    IPv4Calculator.GetFirstHost(networkAddress);
+
+                lastAddress =
+                    IPv4Calculator.GetLastHost(broadcastAddress);
+            }
+            else
+            {
+                firstAddress = prefixLength == 31
+                    ? networkAddress
+                    : ipAddress;
+
+                lastAddress = prefixLength == 31
+                    ? broadcastAddress
+                    : ipAddress;
+            }
+
+            hasResult = true;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            error = true;
+        }
+    }
+}
